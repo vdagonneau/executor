@@ -2,7 +2,10 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"log"
 	"log/slog"
 	"os"
@@ -11,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/google/go-jsonnet"
+	"golang.org/x/crypto/ssh"
 )
 
 func GetLogLevelFromEnv() slog.Level {
@@ -34,13 +38,16 @@ func LoadJsonFrom(path string, value any) {
 	if err != nil {
 		log.Panicf("Failed opening file %s", path)
 	}
-	defer file.Close()
 
 	reader := bufio.NewReader(file)
 	decoder := json.NewDecoder(reader)
 	err = decoder.Decode(value)
 	if err != nil {
 		log.Panicf("Failed reading+parsing file %s to %s: %s", path, reflect.TypeOf(value), err)
+	}
+
+	if err = file.Close(); err != nil {
+		log.Panic(err)
 	}
 }
 
@@ -49,16 +56,22 @@ func SaveJsonTo(path string, value any) {
 	if err != nil {
 		log.Panicf("Failed opening file %s", path)
 	}
-	defer file.Close()
 
 	writer := bufio.NewWriter(file)
-	defer writer.Flush()
 
 	encoder := json.NewEncoder(writer)
 	encoder.SetIndent("", "  ")
 	err = encoder.Encode(value)
 	if err != nil {
 		log.Panicf("Failed writing+serializing file %s to %s: %s", path, reflect.TypeOf(value), err)
+	}
+
+	if err = writer.Flush(); err != nil {
+		log.Panic(err)
+	}
+
+	if err = file.Close(); err != nil {
+		log.Panic(err)
 	}
 }
 
@@ -82,4 +95,62 @@ func InterpretTildeHome(homedir string, path string) string {
 		return filepath.Join(homedir, path[2:])
 	}
 	return path
+}
+
+func SSHRun(client *ssh.Client, command string) (int, string) {
+	return SSHRunWithStdin(client, command, nil)
+}
+
+func SSHRunWithStdin(client *ssh.Client, command string, stdin_payload *[]byte) (int, string) {
+	var exit_code int
+	exit_code = 0
+
+	session, err := client.NewSession()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if stdin_payload != nil {
+		go func() {
+			stdin, err := session.StdinPipe()
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			_, err = io.Copy(stdin, bytes.NewReader(*stdin_payload))
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if err = stdin.Close(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+	}
+
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	if err = session.Run(command); err != nil {
+		var exit_error *ssh.ExitError
+		if errors.As(err, &exit_error) {
+			exit_code = exit_error.ExitStatus()
+		} else {
+			log.Fatal(err)
+		}
+	}
+
+	out, err := io.ReadAll(stdout)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	err = session.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return exit_code, string(out)
 }

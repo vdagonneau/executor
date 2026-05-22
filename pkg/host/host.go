@@ -1,12 +1,10 @@
 package host
 
 import (
-	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"log"
 	"log/slog"
 	"net"
@@ -14,6 +12,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	co "vda.io/executor/pkg/config"
 	st "vda.io/executor/pkg/state"
+	"vda.io/executor/pkg/utils"
 )
 
 type Host struct {
@@ -66,32 +65,8 @@ func (h *Host) Bootstrap(agent []byte) (string, []byte) {
 
 	priv_key, pub_key := h.genNewSSHKeys()
 
-	session, err := client.NewSession()
-	if err != nil {
-		log.Fatal(err)
-	}
-	session.Run(fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys", string(pub_key)))
-	session.Close()
-
-	session, err = client.NewSession()
-	go func() {
-		stdin, err := session.StdinPipe()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		_, err = io.Copy(stdin, bytes.NewReader(agent))
-		if err != nil {
-			log.Fatal(err)
-		}
-		stdin.Close()
-	}()
-
-	err = session.Run("tee agent && chmod +x agent")
-	if err != nil {
-		log.Fatal(err)
-	}
-	session.Close()
+	utils.SSHRun(client, fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys", string(pub_key)))
+	utils.SSHRunWithStdin(client, "tee agent && chmod +x agent", &agent)
 
 	return host_key, priv_key
 }

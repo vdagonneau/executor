@@ -8,9 +8,9 @@ clean:
 	rm -f cmd/executor/embed/agent
 
 executor:
-	go build ./cmd/executor
+	go build -ldflags "-X main.commitHash=$(shell git rev-parse HEAD)" ./cmd/executor
 
 agent:
-	go build -ldflags="-s -w -linkmode external -extldflags '-static'" ./cmd/agent
+	go build -ldflags="-X main.commitHash=$(shell git rev-parse HEAD) -s -w -linkmode external -extldflags '-static'" ./cmd/agent
 	upx -1 agent
 	cp "$(shell pwd)/agent" cmd/executor/embed/agent

@@ -97,7 +97,9 @@ func NewContext() Context {
 		Config:      config,
 		Identities:  identities,
 		Recipients:  recipients,
+		StatePath:   state_path,
 		State:       state,
+		Hosts:       hosts,
 	}
 }
 
@@ -107,8 +109,14 @@ func (c *Context) Encrypt(data []byte) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	writer.Write(data)
-	writer.Close()
+	_, err = writer.Write(data)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = writer.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 	return base64.URLEncoding.EncodeToString(out.Bytes())
 }
 
