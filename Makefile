@@ -13,4 +13,5 @@ executor:
 agent:
 	go build -ldflags="-X main.commitHash=$(shell git rev-parse HEAD) -s -w -linkmode external -extldflags '-static'" ./cmd/agent
 	upx -1 agent
+	mkdir -p cmd/executor/embed
 	cp "$(shell pwd)/agent" cmd/executor/embed/agent
