@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/google/go-jsonnet"
 	"golang.org/x/crypto/ssh"
@@ -110,8 +111,9 @@ func SSHRunWithStdin(client *ssh.Client, command string, stdin_payload *[]byte) 
 		log.Fatal(err)
 	}
 
+	var wg sync.WaitGroup
 	if stdin_payload != nil {
-		go func() {
+		wg.Go(func() {
 			stdin, err := session.StdinPipe()
 			if err != nil {
 				log.Fatal(err)
@@ -125,7 +127,7 @@ func SSHRunWithStdin(client *ssh.Client, command string, stdin_payload *[]byte) 
 			if err = stdin.Close(); err != nil {
 				log.Fatal(err)
 			}
-		}()
+		})
 	}
 
 	stdout, err := session.StdoutPipe()
@@ -147,9 +149,14 @@ func SSHRunWithStdin(client *ssh.Client, command string, stdin_payload *[]byte) 
 		log.Panic(err)
 	}
 
-	err = session.Close()
-	if err != nil {
-		log.Fatal(err)
+	if stdin_payload != nil {
+		wg.Wait()
+	}
+
+	if err = session.Close(); err != nil {
+		if err != io.EOF {
+			log.Fatal(err)
+		}
 	}
 
 	return exit_code, string(out)

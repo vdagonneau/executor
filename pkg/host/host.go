@@ -55,18 +55,27 @@ func (h *Host) genNewSSHKeys() ([]byte, []byte) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return pem.EncodeToMemory(mPrivKey), ssh.MarshalAuthorizedKey(sshPubKey)
 }
 
 func (h *Host) Bootstrap(agent []byte) (string, []byte) {
+	fmt.Printf("        👉 Getting host key: ")
 	client, host_key := h.getHostKey()
+	fmt.Printf("✅\n")
+
 	slog.Debug("getHostKey", "host_key", host_key)
 
+	fmt.Printf("        👉 Getting new SSH keys: ")
 	priv_key, pub_key := h.genNewSSHKeys()
+	fmt.Printf("✅\n")
 
+	fmt.Printf("        👉 Installing SSH public key: ")
 	utils.SSHRun(client, fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys", string(pub_key)))
+	fmt.Printf("✅\n")
+
+	fmt.Printf("        👉 Installing agent: ")
 	utils.SSHRunWithStdin(client, "tee agent && chmod +x agent", &agent)
+	fmt.Printf("✅\n")
 
 	return host_key, priv_key
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"log/slog"
 	"os"
@@ -27,15 +26,20 @@ func main() {
 
 	context := ct.NewContext()
 
-	log.Printf("Checking Hosts")
+	fmt.Printf("Checking Hosts\n")
 	for host_name, host := range context.Hosts {
 		if host.State == nil {
-			log.Printf("  Host not found in state: Starting bootstrap.")
-			host_key, priv_key := host.Bootstrap(agent)
+			fmt.Printf("  %s: Host not found in state.\n", host_name)
 
+			fmt.Printf("      ⬇️ Starting bootstrap.\n")
+			host_key, priv_key := host.Bootstrap(agent)
+			fmt.Printf("      ⬆️ Bootstrap complete!\n")
+
+			fmt.Printf("      💾 Saving host state: ")
 			encrypted_priv_key := context.Encrypt(priv_key)
 			context.State.Hosts[host_name] = st.HostState{HostKey: host_key, PrivateKey: encrypted_priv_key}
 			context.SaveState()
+			fmt.Printf("✅\n")
 		} else {
 			log.Printf("  Host found in state: Starting connectivity check.")
 
@@ -61,25 +65,12 @@ func main() {
 				log.Panicf("Failed establishing SSH connection to %s: %s", host.Config.Hostname, err)
 			}
 
-			session, err := client.NewSession()
-			if err != nil {
-				log.Fatal(err)
-			}
+			_, stdout := utils.SSHRun(client, "./agent --version")
+			slog.Debug("Agent", "version", stdout)
 
-			stdout, err := session.StdoutPipe()
-			if err != nil {
-				log.Panic(err)
+			if stdout != commitHash {
+				slog.Warn("Agent Version Mismatch", "local_version", commitHash, "remote_version", stdout)
 			}
-			err = session.Run("./agent --version")
-			if err != nil {
-				log.Panic(err)
-			}
-
-			out, err := io.ReadAll(stdout)
-			if err != nil {
-				log.Panic(err)
-			}
-			slog.Debug("Agent", "version", string(out))
 		}
 	}
 }
