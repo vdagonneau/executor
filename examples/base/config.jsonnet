@@ -1,7 +1,6 @@
 local DefaultHost(hostname) = {
   hostname: hostname,
   port: 22,
-  actions: {},
 };
 
 {

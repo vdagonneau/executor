@@ -59,23 +59,26 @@ func (h *Host) genNewSSHKeys() ([]byte, []byte) {
 }
 
 func (h *Host) Bootstrap(agent []byte) (string, []byte) {
-	fmt.Printf("        👉 Getting host key: ")
+	fmt.Printf("        Getting host key: ")
 	client, host_key := h.getHostKey()
-	fmt.Printf("✅\n")
+	fmt.Printf("OK\n")
 
 	slog.Debug("getHostKey", "host_key", host_key)
 
-	fmt.Printf("        👉 Getting new SSH keys: ")
+	fmt.Printf("        Getting new SSH keys: ")
 	priv_key, pub_key := h.genNewSSHKeys()
-	fmt.Printf("✅\n")
+	fmt.Printf("OK\n")
 
-	fmt.Printf("        👉 Installing SSH public key: ")
+	fmt.Printf("        Installing SSH public key: ")
 	utils.SSHRun(client, fmt.Sprintf("echo '%s' >> ~/.ssh/authorized_keys", string(pub_key)))
-	fmt.Printf("✅\n")
+	fmt.Printf("OK\n")
 
-	fmt.Printf("        👉 Installing agent: ")
-	utils.SSHRunWithStdin(client, "tee agent && chmod +x agent", &agent)
-	fmt.Printf("✅\n")
+	fmt.Printf("        Installing agent: ")
+	exit_code, stdout := utils.InstallAgent(client, agent)
+	if exit_code != 0 {
+		log.Fatalf("Failed to install agent with exit code %d: %s", exit_code, stdout)
+	}
+	fmt.Printf("OK\n")
 
 	return host_key, priv_key
 }

@@ -36,36 +36,52 @@ func main() {
 		if host.State == nil {
 			fmt.Printf("  %s: Host not found in state.\n", host_name)
 
-			fmt.Printf("      ⬇️ Starting bootstrap.\n")
+			fmt.Printf("      Starting bootstrap.\n")
 			host_key, priv_key := host.Bootstrap(agent)
-			fmt.Printf("      ⬆️ Bootstrap complete!\n")
+			fmt.Printf("      Bootstrap complete.\n")
 
-			fmt.Printf("      💾 Saving host state: ")
+			fmt.Printf("      Saving host state: ")
 			encrypted_priv_key := context.Encrypt(priv_key)
 			context.State.Hosts[host_name] = st.HostState{HostKey: host_key, PrivateKey: encrypted_priv_key}
 			context.SaveState()
-			fmt.Printf("✅\n")
+			fmt.Printf("OK\n")
 
 			signer, err := ssh.ParsePrivateKey(priv_key)
 			if err != nil {
 				log.Panicf("Failed to parse generated private key: %s", err)
 			}
+			fmt.Printf("      Connecting with generated key: ")
 			client := connectToHost(host, host_key, signer)
+			fmt.Printf("OK\n")
+
 			checkAgentVersion(client)
 			runActions(client, host)
 			if err = client.Close(); err != nil {
 				log.Panicf("Failed closing SSH connection to %s: %s", host.Config.Hostname, err)
 			}
+			fmt.Printf("      Connection closed: OK\n")
 		} else {
-			log.Printf("  Host found in state: Starting connectivity check.")
+			fmt.Printf("  %s: Host found in state.\n", host_name)
 
+			fmt.Printf("      Loading SSH key: ")
 			signer := context.GetSSHPrivateKey(host)
+			fmt.Printf("OK\n")
+
+			fmt.Printf("      Connecting to %s:%d: ", host.Config.Hostname, host.Config.Port)
 			client := connectToHost(host, host.State.HostKey, signer)
-			checkAgentVersion(client)
+			fmt.Printf("OK\n")
+
+			if !checkAgentVersion(client) {
+				installAgent(client)
+				if !checkAgentVersion(client) {
+					log.Fatal("agent version still mismatched after reinstall")
+				}
+			}
 			runActions(client, host)
 			if err := client.Close(); err != nil {
 				log.Panicf("Failed closing SSH connection to %s: %s", host.Config.Hostname, err)
 			}
+			fmt.Printf("      Connection closed: OK\n")
 		}
 	}
 }
@@ -93,16 +109,39 @@ func connectToHost(host ho.Host, hostKey string, signer ssh.Signer) *ssh.Client 
 	return client
 }
 
-func checkAgentVersion(client *ssh.Client) {
-	_, stdout := utils.SSHRun(client, "./agent version")
+func checkAgentVersion(client *ssh.Client) bool {
+	fmt.Printf("      Checking agent version: ")
+	exitCode, stdout := utils.SSHRun(client, "./agent version")
+	if exitCode != 0 {
+		log.Fatalf("agent version check failed with exit code %d: %s", exitCode, stdout)
+	}
 	slog.Debug("Agent", "version", stdout)
 
 	if stdout != commitHash {
+		fmt.Printf("WARN mismatch\n")
 		slog.Warn("Agent Version Mismatch", "local_version", commitHash, "remote_version", stdout)
+		return false
 	}
+	fmt.Printf("OK\n")
+	return true
+}
+
+func installAgent(client *ssh.Client) {
+	fmt.Printf("      Installing embedded agent: ")
+	exitCode, stdout := utils.InstallAgent(client, agent)
+	if exitCode != 0 {
+		log.Fatalf("agent install failed with exit code %d: %s", exitCode, stdout)
+	}
+	fmt.Printf("OK\n")
 }
 
 func runActions(client *ssh.Client, host ho.Host) {
+	if len(host.Config.Actions) == 0 {
+		fmt.Printf("      Actions: none configured\n")
+		return
+	}
+
+	fmt.Printf("      Running %d action(s)\n", len(host.Config.Actions))
 	for actionName, actionArgs := range host.Config.Actions {
 		switch actionName {
 		case "copy":
@@ -134,15 +173,20 @@ func runCopyAction(client *ssh.Client, host ho.Host, action co.CopyAction) {
 		log.Fatalf("copy action for host %q requires dst", host.Name)
 	}
 
+	fmt.Printf("        copy %s -> %s\n", action.Src, action.Dst)
+	fmt.Printf("          Reading source: ")
 	payload, err := os.ReadFile(action.Src)
 	if err != nil {
 		log.Fatalf("failed to read copy source %q for host %q: %s", action.Src, host.Name, err)
 	}
+	fmt.Printf("OK %d bytes\n", len(payload))
 
+	fmt.Printf("          Sending to agent: ")
 	encoded := []byte(base64.StdEncoding.EncodeToString(payload))
 	command := "./agent copy --filename " + strconv.Quote(action.Dst)
 	exitCode, stdout := utils.SSHRunWithStdin(client, command, &encoded)
 	if exitCode != 0 {
 		log.Fatalf("copy action failed for host %q with exit code %d: %s", host.Name, exitCode, stdout)
 	}
+	fmt.Printf("OK\n")
 }

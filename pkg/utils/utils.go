@@ -102,6 +102,10 @@ func SSHRun(client *ssh.Client, command string) (int, string) {
 	return SSHRunWithStdin(client, command, nil)
 }
 
+func InstallAgent(client *ssh.Client, agent []byte) (int, string) {
+	return SSHRunWithStdin(client, "tee agent >/dev/null && chmod +x agent", &agent)
+}
+
 func SSHRunWithStdin(client *ssh.Client, command string, stdin_payload *[]byte) (int, string) {
 	var exit_code int
 	exit_code = 0
