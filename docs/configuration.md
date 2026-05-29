@@ -18,6 +18,12 @@ schema.
     workstation: {
       hostname: '127.0.0.1',
       port: 22,
+      actions: {
+        copy: {
+          src: 'foobar',
+          dst: '/root/foobar',
+        },
+      },
     },
   },
 }
@@ -31,6 +37,9 @@ Fields:
 | `hosts` | object | yes | Map of server names to host configuration objects. |
 | `hosts.<name>.hostname` | string | yes | Hostname or IP address used for SSH connections. |
 | `hosts.<name>.port` | number | yes | SSH port. |
+| `hosts.<name>.actions` | object | no | Actions to run on the host after the agent version check succeeds. |
+| `hosts.<name>.actions.copy.src` | string | yes, for `copy` | Local source file path to read from the administrator workstation. |
+| `hosts.<name>.actions.copy.dst` | string | yes, for `copy` | Remote destination file path passed to the agent. |
 
 Host map keys are stable server names used in `state.json`.
 

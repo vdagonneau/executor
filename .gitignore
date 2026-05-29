@@ -1,7 +1,4 @@
 /agent
 /executor
-/.age-recipients
-/state.json
-/config.jsonnet
 /cmd/executor/embed
-
+/examples/base/state.json

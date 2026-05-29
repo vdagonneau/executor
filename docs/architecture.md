@@ -59,10 +59,13 @@ is the execution surface that `executor` uses after connecting over SSH.
 Its current command surface is:
 
 ```sh
-./agent --version
+./agent version
+./agent copy --filename /path/to/file < base64-payload
 ```
 
 The version value is injected at build time from the current Git commit hash.
+The `copy` action reads standard base64 data from stdin, decodes it, and writes
+the decoded bytes to the filename passed with `--filename`.
 
 ### `cmd/executor`
 
@@ -121,19 +124,19 @@ Existing-state path:
 2. Decrypt and parse the stored private key.
 3. Connect as `root` with public key authentication and fixed host key
    verification.
-4. Run `./agent --version`.
+4. Run `./agent version`.
 5. Warn if the remote version differs from the local commit hash.
+6. Run the configured host actions through the remote agent.
 
 Configuration deployment path:
 
 1. Reuse the established SSH connection to the server.
 2. Invoke the remote agent through that SSH connection.
-3. Send the desired configuration operation or payload to the agent.
+3. For `copy`, send base64-encoded local file bytes to `./agent copy`.
 4. Let the agent apply the server-side change locally.
 
-The current code implements bootstrap and version verification. The deployment
-protocol and configuration operations sit naturally on top of the existing
-agent-over-SSH shape.
+The current code implements bootstrap, version verification, and the `copy`
+configuration operation on top of the existing agent-over-SSH shape.
 
 ## Package Responsibilities
 

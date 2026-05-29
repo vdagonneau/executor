@@ -70,9 +70,8 @@ After bootstrap, the intended deployment path is:
 2. Verify or refresh the remote agent.
 3. Use the agent through the SSH session to apply configuration to the server.
 
-The current implementation bootstraps hosts and verifies the remote agent
-version. Configuration deployment is the next layer on top of the established
-SSH and agent transport.
+The current implementation bootstraps hosts, verifies the remote agent version,
+and supports a `copy` action that sends local file content to the remote agent.
 
 ## What Happens On Each Run
 
@@ -84,8 +83,9 @@ For each configured host:
    and saves state.
 3. If the host already has state, `executor` connects with the saved key and a
    fixed host key check.
-4. It runs `./agent --version` remotely and warns if the remote agent version
+4. It runs `./agent version` remotely and warns if the remote agent version
    differs from the local embedded build version.
+5. It runs configured host actions, including `copy`.
 
 ## Security Notes
 
