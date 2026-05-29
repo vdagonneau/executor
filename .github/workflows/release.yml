@@ -42,9 +42,12 @@ jobs:
         run: |
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
-          archive="executor_${tag}_linux_amd64.tar.gz"
-          tar -czf "${archive}" executor agent
-          sha256sum "${archive}" > "${archive}.sha256"
+          executor_archive="executor_${tag}_linux_amd64.tar.gz"
+          agent_archive="agent_${tag}_linux_amd64.tar.gz"
+          tar -czf "${executor_archive}" executor
+          tar -czf "${agent_archive}" agent
+          sha256sum "${executor_archive}" > "${executor_archive}.sha256"
+          sha256sum "${agent_archive}" > "${agent_archive}.sha256"
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
@@ -52,3 +55,5 @@ jobs:
           files: |
             executor_${{ github.ref_name }}_linux_amd64.tar.gz
             executor_${{ github.ref_name }}_linux_amd64.tar.gz.sha256
+            agent_${{ github.ref_name }}_linux_amd64.tar.gz
+            agent_${{ github.ref_name }}_linux_amd64.tar.gz.sha256

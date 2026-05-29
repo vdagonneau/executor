@@ -15,6 +15,15 @@ only transport.
 state are encrypted with [age](https://pkg.go.dev/filippo.io/age) before they are
 written to disk.
 
+## Getting Started
+
+From a directory containing your `executor` configuration files, downloada and
+extract the latest Linux amd64 release in one line:
+
+```sh
+tag="$(basename "$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/vdagonneau/executor/releases/latest)")" && curl -fsSL "https://github.com/vdagonneau/executor/releases/download/${tag}/executor_${tag}_linux_amd64.tar.gz" | tar -xz -C "$tmp" executor
+```
+
 ## Configure
 
 Create these files in the working directory where you run `executor`:
