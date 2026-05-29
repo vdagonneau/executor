@@ -35,23 +35,19 @@ jobs:
           GOARCH: amd64
         run: |
           set -euo pipefail
-          commit_hash="$(git rev-parse HEAD)"
-          mkdir -p cmd/executor/embed dist
-          go build -ldflags="-X main.commitHash=${commit_hash} -s -w" -o dist/agent ./cmd/agent
-          cp dist/agent cmd/executor/embed/agent
-          go build -ldflags="-X main.commitHash=${commit_hash} -s -w" -o dist/executor ./cmd/executor
+          make
 
       - name: Package release assets
         run: |
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
           archive="executor_${tag}_linux_amd64.tar.gz"
-          tar -C dist -czf "dist/${archive}" executor agent
-          sha256sum "dist/${archive}" > "dist/${archive}.sha256"
+          tar -czf "${archive}" executor agent
+          sha256sum "${archive}" > "${archive}.sha256"
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/executor_${{ github.ref_name }}_linux_amd64.tar.gz
-            dist/executor_${{ github.ref_name }}_linux_amd64.tar.gz.sha256
+            executor_${{ github.ref_name }}_linux_amd64.tar.gz
+            executor_${{ github.ref_name }}_linux_amd64.tar.gz.sha256
