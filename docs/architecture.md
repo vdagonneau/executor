@@ -9,6 +9,46 @@ The design is intentionally closer to a small Ansible alternative than to a
 daemon-based management system: SSH is the transport, the agent is lightweight,
 and host state stays with the administrator workspace.
 
+## Repository Layout
+
+```text
+cmd/agent/       Minimal remote agent binary entry point.
+cmd/executor/    Administrator workstation CLI entry point.
+pkg/config/      Config schema.
+pkg/context/     Runtime context loading, age encryption, and state handling.
+pkg/host/        Host bootstrap logic.
+pkg/state/       State schema.
+pkg/utils/       JSON, Jsonnet, SSH, path, and logging helpers.
+examples/base/   Minimal example configuration and state shape.
+```
+
+## Requirements
+
+- Go matching the version in `go.mod`.
+- `upx` for the `agent` build target.
+- age identity and recipient files.
+- SSH access as `root` to each target server during bootstrap.
+
+## Build
+
+```sh
+make
+```
+
+This builds both binaries:
+
+- `agent`
+- `executor`
+
+The `agent` target also compresses the agent with `upx` and copies it to
+`cmd/executor/embed/agent` so `executor` can embed it.
+
+To clean generated build artifacts:
+
+```sh
+make clean
+```
+
 ## Binaries
 
 ### `cmd/agent`

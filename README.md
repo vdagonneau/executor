@@ -1,61 +1,19 @@
 # executor
 
-`executor` is a minimalistic alternative to Ansible. It is designed to run from
-an administrator workstation, connect to servers over SSH, copy a small
-statically linked agent, and then drive that agent through the same SSH
-connection to deploy configuration.
+`executor` is a minimalistic alternative to Ansible. It is designed to operate on
+a push "agentless" model.
 
-The project favors a compact control plane over a large runtime dependency on
-managed hosts. The local `executor` binary embeds the remote `agent` binary and
-uses SSH as the only transport.
+You run the main CLI tool from a control node, it connects through SSH to remote
+nodes, copies a minimal agent and then applies the locally defined configuration
+to the remote node. 
 
-The tool keeps per-host bootstrap state in `state.json`. Private SSH keys in
-that state are encrypted with age before they are written to disk.
+`executor` favors a compact tool over a large runtime dependency on managed hosts.
+The local `executor` binary embeds the remote `agent` binary and uses SSH as the
+only transport.
 
-## Repository Layout
-
-```text
-cmd/agent/       Minimal remote agent binary entry point.
-cmd/executor/    Administrator workstation CLI entry point.
-pkg/config/      Config schema.
-pkg/context/     Runtime context loading, age encryption, and state handling.
-pkg/host/        Host bootstrap logic.
-pkg/state/       State schema.
-pkg/utils/       JSON, Jsonnet, SSH, path, and logging helpers.
-examples/base/   Minimal example configuration and state shape.
-```
-
-## Requirements
-
-- Go matching the version in `go.mod`.
-- `upx` for the `agent` build target.
-- age identity and recipient files.
-- SSH access as `root` to each target server during bootstrap.
-
-The current bootstrap flow initially connects with password authentication using
-the password `root`, installs a generated SSH public key, copies the embedded
-agent to `~/agent`, and then stores the generated private key in encrypted
-state.
-
-## Build
-
-```sh
-make
-```
-
-This builds both binaries:
-
-- `agent`
-- `executor`
-
-The `agent` target also compresses the agent with `upx` and copies it to
-`cmd/executor/embed/agent` so `executor` can embed it.
-
-To clean generated build artifacts:
-
-```sh
-make clean
-```
+`executor` aalso keeps per-host state in `state.json`. Private SSH keys in that
+state are encrypted with [age](https://pkg.go.dev/filippo.io/age) before they are
+written to disk.
 
 ## Configure
 
